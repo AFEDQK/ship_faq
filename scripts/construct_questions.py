@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*- #
 # @Time : 2022/10/11 19:01
+import csv
 import re
 from collections import defaultdict
 
@@ -55,11 +56,17 @@ def process_ship_name(ship_name):
         splited_ship_names.extend([sub_name[0], main_name])
     # 形式为：GREATSHIP RACHNA
     elif " " in ship_name:
-        n1, n2 = ship_name.split(" ")
-        splited_ship_names.extend([n1, n2])
-        if n1.isalpha() and n2.isalpha():
-            new_name = n1[0] + n2[0]
-            splited_ship_names.append(new_name)
+        splited_ship_names.append(ship_name.lower())
+        name_words = ship_name.strip(" ").split(" ")
+        for each_word in name_words:
+            if not each_word.isalpha():
+                continue
+            splited_ship_names.append(each_word)
+        # new_name = ""
+        # for word in name_words:
+        #     new_name += word[0]
+        # splited_ship_names.append(new_name)
+
     # 形式为：韦斯顿·澳大利亚
     elif "·" in ship_name:
         n1, n2 = ship_name.split("·")
@@ -97,30 +104,49 @@ def get_template_label(rel, tail):
     return temp_type
 
 
+def joint_new_question(label_2_templates, entity_2_substitution, head, rel, tail):
+    ques_res = []
+    if rel in entity_2_substitution:
+        replace_text = entity_2_substitution[rel]
+        for text in replace_text:
+            question = "%s%s？" % (head, text)
+            print(question)
+            ques_res.append([question])
+    temp_type = get_template_label(rel, tail)
+    if temp_type:
+        templates = label_2_templates[temp_type]
+    else:
+        templates = label_2_templates["common"]
+    # templates.extend(label_2_templates["place"])
+    # templates.extend(label_2_templates["special"])
+    for each_temp in templates:
+        question = each_temp.replace("[Subject]", head).replace("[Predicate]", rel).replace("[Object]", tail)
+        # print(question)
+        ques_res.append([question])
+    return ques_res
+
+
 def build_diff_questions(triples, label_2_templates, entity_2_substitution):
     # 构建不同形式的问句
     all_questions = []
     for each_triple in triples:
         head, rel, tail = each_triple.split("||")
         # TODO:对head进行变形
-        if rel in entity_2_substitution:
-            replace_text = entity_2_substitution[rel]
-            for text in replace_text:
-                question = "%s%s？" % (head, text)
-                print(question)
-                all_questions.append(question)
-        temp_type = get_template_label(rel, tail)
-        if temp_type:
-            templates = label_2_templates[temp_type]
+        new_ship_name = process_ship_name(head)
+        if type(new_ship_name) == str:
+            all_questions.extend(joint_new_question(label_2_templates, entity_2_substitution, head, rel, tail))
         else:
-            templates = label_2_templates["common"]
-        # templates.extend(label_2_templates["place"])
-        # templates.extend(label_2_templates["special"])
-        for each_temp in templates:
-            question = each_temp.replace("[Subject]", head).replace("[Predicate]", rel).replace("[Object]", tail)
-            # print(question)
-            all_questions.append(question)
+            for each_name in new_ship_name:
+                all_questions.extend(joint_new_question(label_2_templates, entity_2_substitution, each_name, rel, tail))
+
     print("构建问题的数量:", len(all_questions))
+    return all_questions
+
+
+def write_to_txt(save_fp, result):
+    with open(save_fp, "w", encoding="utf-8", newline="") as fd:
+        writer = csv.writer(fd)
+        writer.writerows(result)
 
 
 def main():
@@ -132,7 +158,9 @@ def main():
     regulars = load_data(regx_fp)
     label_2_templates = transfer_templates(templates)
     entity_2_substitution = transfer_regulars(regulars)
-    build_diff_questions(triples, label_2_templates, entity_2_substitution)
+    result = build_diff_questions(triples, label_2_templates, entity_2_substitution)
+    save_fp = "../result/diff_form_questions.csv"
+    write_to_txt(save_fp, result)
 
 
 if __name__ == '__main__':
