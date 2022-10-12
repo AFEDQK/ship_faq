@@ -8,3 +8,4 @@ textrank4zh
 xlrd2
 xlwt
 annoy==1.17.0
+protobuf==3.19.5

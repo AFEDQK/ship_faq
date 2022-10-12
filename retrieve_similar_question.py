@@ -63,7 +63,7 @@ def main():
     result = []
     for query in query_lst:
         print(query, "\n", "~~~~~~~~~~~")
-        # entity_similar_ids = get_entity_retrieval(query)
+        # entity_similar_ids = get_entity_retrieval(query)e
         matched_res = bm25_match(all_questions, query, 20)
         bm25_recall_result = [item[1] for item in matched_res]
         vector_similar_ids = get_vector_retrieval(query, bm25_recall_result)
@@ -72,7 +72,7 @@ def main():
         sorted_res = sorted(vector_similar_ids, key=lambda x: x[-1], reverse=True)
         result.extend(sorted_res)
     save_fp = "result/ship_similar_faq_bm25_2.csv"
-    write_to_csv(save_fp, result)
+    # write_to_csv(save_fp, result)
 
 
 if __name__ == '__main__':
